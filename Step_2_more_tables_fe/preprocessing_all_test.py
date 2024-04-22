@@ -1,4 +1,4 @@
-# %%
+# This script preprocesses the test data by joining all the tables and creating new features
 import numpy as np
 import pandas as pd
 import polars as pl
@@ -29,15 +29,12 @@ from contextlib import suppress
 pathway = ""
 
 
+# helper function taken from discussions
 def set_table_dtypes(df: pl.DataFrame) -> pl.DataFrame:
     for col in df.columns:
         # Cast Transform DPD (Days past due, P) and Transform Amount (A) as Float64
         if col[-1] in ("P", "A"):
             df = df.with_columns(pl.col(col).cast(pl.Float64).alias(col))
-        # Cast Transform date (D) as Date, causes issues with other columns ending in D
-        # if col[-1] in ("D"):
-        # df = df.with_columns(pl.col(col).cast(pl.Date).alias(col))
-        # Cast aggregated columns as Float64, tried combining sum and max, but did not work correctly
         if col[-4:-1] in ("_sum"):
             df = df.with_columns(pl.col(col).cast(pl.Float64).alias(col))
         if col[-4:-1] in ("_max"):
@@ -52,7 +49,7 @@ def convert_strings(df: pl.DataFrame) -> pl.DataFrame:
     return df
 
 
-# Changed this function to work for Pandas
+# checking what percentage of each column is missing
 def missing_values(df, threshold=0.0):
     for col in df.columns:
         decimal = (pd.isnull(test[col]).sum()) / (len(test[col]))
@@ -69,46 +66,6 @@ def imputer(df: pd.DataFrame) -> pd.DataFrame:
             mode_without_nan = df[col].dropna().mode().values[0]
             df[col] = df[col].fillna(mode_without_nan)
     return df
-
-
-# def reduce_mem_usage(df):
-#     """ iterate through all the columns of a dataframe and modify the data type
-#         to reduce memory usage.
-#     """
-#     start_mem = df.memory_usage().sum() / 1024**2
-#     print('Memory usage of dataframe is {:.2f} MB'.format(start_mem))
-
-#     for col in df.columns:
-#         col_type = df[col].dtype
-#         if str(col_type)=="category":
-#             continue
-
-#         if col_type != object:
-#             c_min = df[col].min()
-#             c_max = df[col].max()
-#             if str(col_type)[:3] == 'int':
-#                 if c_min > np.iinfo(np.int8).min and c_max < np.iinfo(np.int8).max:
-#                     df[col] = df[col].astype(np.int8)
-#                 elif c_min > np.iinfo(np.int16).min and c_max < np.iinfo(np.int16).max:
-#                     df[col] = df[col].astype(np.int16)
-#                 elif c_min > np.iinfo(np.int32).min and c_max < np.iinfo(np.int32).max:
-#                     df[col] = df[col].astype(np.int32)
-#                 elif c_min > np.iinfo(np.int64).min and c_max < np.iinfo(np.int64).max:
-#                     df[col] = df[col].astype(np.int64)
-#             else:
-#                 if c_min > np.finfo(np.float16).min and c_max < np.finfo(np.float16).max:
-#                     df[col] = df[col].astype(np.float16)
-#                 elif c_min > np.finfo(np.float32).min and c_max < np.finfo(np.float32).max:
-#                     df[col] = df[col].astype(np.float32)
-#                 else:
-#                     df[col] = df[col].astype(np.float64)
-#         else:
-#             continue
-#     end_mem = df.memory_usage().sum() / 1024**2
-#     print('Memory usage after optimization is: {:.2f} MB'.format(end_mem))
-#     print('Decreased by {:.1f}%'.format(100 * (start_mem - end_mem) / start_mem))
-
-#     return df
 
 
 test_basetable = pl.read_csv(pathway + "csv_files/test/test_base.csv")
@@ -137,7 +94,7 @@ test_credit_bureau_b_2 = pl.read_csv(
 ).pipe(set_table_dtypes)
 
 
-# Additional depth=1 files
+# files tagged as "other" are depth=1
 test_other_1 = pl.read_csv(pathway + "csv_files/test/test_other_1.csv").pipe(
     set_table_dtypes
 )
@@ -150,12 +107,10 @@ test_deposit_1 = pl.read_csv(pathway + "csv_files/test/test_deposit_1.csv").pipe
     set_table_dtypes
 )
 
-# test_debitcard_1 = pl.read_csv(pathway + "csv_files/test/test_debitcard_1.csv").pipe(set_table_dtypes)
 test_basetable = test_basetable.with_columns(pl.col("date_decision").cast(pl.Date))
 
 
-# use aggregation functions in tables with depth >=1
-
+# Aggregate columns for depth=2 files so that familial features are not duplicated
 test_person_1_feats_1 = test_person_1.group_by("case_id").agg(
     pl.col("mainoccupationinc_384A").sum().alias("mainoccupationinc_384A_sum")
 )
@@ -658,12 +613,9 @@ print(np.count_nonzero(test.isnull()))
 test = imputer(test)
 print(np.count_nonzero(test.isnull()))
 
-# See boolean columns
 bool_cols = test.select_dtypes(include=["bool"]).columns.tolist()
-# Convert boolean columns to 0 or 1 (False or True)
 for col in bool_cols:
     test[col] = test[col].astype(int)
-# Check unique values of bool_cols
 for col in bool_cols:
     print(test[col].unique())
 
