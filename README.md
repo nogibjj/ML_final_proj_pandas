@@ -24,7 +24,7 @@ The final phase culminated in a tuned LightGBM model emerging as the top perform
 
 To get started with this project, follow these steps:
 
-1. Clone the repository: `git clone https://github.com/your-username/home-credit-risk-modeling.git`
+1. Clone the repository: `git clone https://github.com/nogibjj/ML_final_proj_pandas.git`
 2. Install the required dependencies: `pip install -r requirements.txt`
 3. Download the dataset from the Kaggle competition: [Home Credit Default Risk](https://www.kaggle.com/competitions/home-credit-default-risk/data) - The data was quite large (even for git lfs) so not pushed in this repository.
 4. Place the dataset files in the `data/` directory.
