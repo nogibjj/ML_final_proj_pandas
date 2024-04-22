@@ -658,8 +658,6 @@ print(np.count_nonzero(test.isnull()))
 test = imputer(test)
 print(np.count_nonzero(test.isnull()))
 
-
-# %%
 # See boolean columns
 bool_cols = test.select_dtypes(include=["bool"]).columns.tolist()
 # Convert boolean columns to 0 or 1 (False or True)
@@ -669,7 +667,6 @@ for col in bool_cols:
 for col in bool_cols:
     print(test[col].unique())
 
-# %%
-# save test data
 
+# save test data
 test.to_csv("test_final.csv", index=False)
